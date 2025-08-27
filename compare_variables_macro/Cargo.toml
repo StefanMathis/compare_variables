@@ -1,0 +1,21 @@
+[package]
+name = "compare_variables_macro"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+proc-macro-error = "1"
+
+[features]
+default = []
+
+[dev-dependencies]
+indoc = "1.0"
+compare_variables_macro = { path = "."} # Solution from https://stackoverflow.com/questions/68618789/is-it-possible-to-enable-a-rust-feature-only-in-test to enable feature during integration test
+compare_variables = { path = "../../compare_variables"}

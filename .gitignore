@@ -1,0 +1,18 @@
+# Ignore all target directories
+**/target/
+
+# Binary artifacts
+*.a
+
+# Ignore Cargo.lock for library crates (keep at root if binary project)
+**/Cargo.lock
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.bak
+*.tmp
+
+# Rust backup files
+*.rs.bk

@@ -1,0 +1,15 @@
+[package]
+name = "compare_variables"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+compare_variables_macro = { path = "compare_variables_macro", optional = true}
+
+[features]
+default = ["proc_macro"]
+proc_macro = ["dep:compare_variables_macro"]
+
+[dev-dependencies]
+compare_variables = { path = ".", features = ["proc_macro"] } 
+uom = {version = "0.36", default-features = false, features = ["f64", "si", "std"]}
