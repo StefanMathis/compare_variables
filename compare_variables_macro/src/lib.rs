@@ -9,67 +9,134 @@ use syn::parse::Parse;
 use syn::{Token, parse_macro_input};
 
 /**
+A macro to compare types which implement `PartialOrd`.
 
+# Overview
 
-This macro checks whether the defined bounds are respected by a given variable.
+This macro performs comparison between two or three values of any type `T` which implements  `PartialOrd`.
+If the comparison evaluates to `true`, the macro returns `Result::Ok(())`, otherwise it returns a
+`Result::Err(compare_variables::ComparisonError)` which can be formatted into a string showcasing
+the failed comparison.
 
-# Syntax description
+The macro syntax is
+```math
+compare_variables(x * y)
+```
+for comparing two values and
+```math
+compare_variables(x * y * z)
+```
+for comparing three values with `*` being any of the comparison operators `<, <=, ==, >, >=`.
 
-`(lower_bound <(=)) argument_name (as alternative_name) (<(=) upper_bound)`
+`x`, `y` and `z` can be either a literal (e.g. `3.141` or `1e10`) or a variable:
 
-All arguments in parentheses are optional, see examples below. Either lower or upper bound must be given
-The argument can be renamed inside the potentially constructed error via the optional `as alternative_name` syntax.
+```rust
+use compare_variables::compare_variables;
 
-IMPORTANT NOTE: If a field should be accessed, it is necessary to bind it to a temporary variable and use the temporary variable, see examples below
+assert!(compare_variables!(2.0 > 1.5).is_ok());
 
-# Examples
+let x = 1;
+let y = 2;
+assert!(compare_variables!(x < 2 == y).is_ok());
+assert!(compare_variables!(x >= 2).is_err());
+```
+
+It is possible to combine the macro with the question mark operator:
+```rust
+use compare_variables::{compare_variables, ComparisonError};
+
+fn checked_sub(left: u16, right: u16) -> Result<u16, ComparisonError<u16>> {
+    compare_variables!(left >= right)?;
+    return Ok(left - right);
+}
+
+assert_eq!(checked_sub(2, 1).unwrap(), 1);
+assert_eq!(checked_sub(2, 2).unwrap(), 0);
+assert!(checked_sub(2, 3).is_err());
+```
+
+It is also possible to use named struct fields as inputs:
+
 ```
 use compare_variables::compare_variables;
 
-let arg = 2.0;
-let res = compare_variables!(0.0 < arg as alternative_arg_name <= 1.0);
-assert!(res.is_err());
-
-// Ok since the upper bound is inclusive
-let arg_1 = 0.0;
-let arg_2 = 1.0;
-let res = compare_variables!(arg_1 as alternative_arg_1 < arg_2 as alternative_arg_2 <= 1.0).is_ok();
-
-// Fails since the lower bound is not inclusive
-let arg = 0.0;
-let res = compare_variables!(0.0 < arg as alternative_arg_name <= 1.0).is_err();
-
-// Further ways to invoke the macro
-let arg_1 = 0.0;
-let arg_2 = 1.0;
-compare_variables!(0.0 <= arg_1 as alternative_arg_name <= 1.0).is_ok();
-compare_variables!(0.0 < arg_1).is_err();
-compare_variables!(arg_1 < 0.0).is_err();
-compare_variables!(arg_1 <= 0.0).is_ok();
-compare_variables!(arg_2 <= arg_1).is_err();
-compare_variables!(arg_2 as alternative_arg_name <= arg_1).is_err();
-
-// Also works with negative numbers
-let arg = -1.0;
-compare_variables!(-2.0 <= arg as alternative_arg_name <= 0.0).is_ok();
-
-// Field access
-let tuple = (1, 2);
-
-// This does not compile!
-// compare_variables!(tuple.0 < 2);
-let temp = tuple.0;
-compare_variables!(temp < 2);
-
-struct Test {
-    field: f64
+struct NamedField {
+   x: f64
 }
-let test_struct = Test {field: 0.0};
 
-// This does not compile!
-// compare_variables!(test_struct.field < 2.0);
-let temp = test_struct.field;
-compare_variables!(temp < 2.0);
+let n = NamedField {x: 1.0};
+assert!(compare_variables!(n.x > -1.0).is_ok());
+assert!(compare_variables!(n.x > 1.0).is_err());
+```
+
+# Error message
+
+The error message is created via the struct [`ComparisonError`](https://docs.rs/compare_variables/0.1.0/compare_variables/struct.ComparisonError.html).
+Please refer to its documentation for more details. The keywords `raw` and `as` allow to customize the treatment of variable names in the error message:
+
+```
+use compare_variables::compare_variables;
+
+// Error message with literals only
+let err = compare_variables!(5i32 <= -1i32);
+assert_eq!(err.unwrap_err().to_string(), "`5 <= -1` is false");
+
+let x = 1;
+let y = 2;
+
+// Default error message
+let err = compare_variables!(x > y);
+assert_eq!(err.unwrap_err().to_string(), "`x (value: 1) > y (value: 2)` is false");
+
+// Rename x in the error message
+let err = compare_variables!(x as variable > y);
+assert_eq!(err.unwrap_err().to_string(), "`variable (value: 1) > y (value: 2)` is false");
+
+// Only display the underlying value, not the variable name:
+let err = compare_variables!(raw x > y);
+assert_eq!(err.unwrap_err().to_string(), "`1 > y (value: 2)` is false");
+
+// `as` is ignored if used together with `raw`:
+let err = compare_variables!(raw x as variable > y);
+assert_eq!(err.unwrap_err().to_string(), "`1 > y (value: 2)` is false");
+```
+
+# Examples
+
+```rust
+use compare_variables::compare_variables;
+
+// Different float types:
+assert!(compare_variables!(1.5 < 2.0 == 3.0).is_err());
+assert!(compare_variables!(1.7f32 == 1.7f32).is_ok());
+let f = 2.0;
+assert!(compare_variables!(f < 5.2).is_ok());
+assert!(compare_variables!(f as f_var == raw f).is_ok());
+
+// Signed and unsigned integers
+assert!(compare_variables!(1i32 >= 2i32).is_err());
+let u = 3usize;
+assert!(compare_variables!(2usize < u < 4usize).is_ok());
+let i = 15i64;
+assert!(compare_variables!(-10i64 <= i).is_ok());
+assert!(compare_variables!(-10i64 <= i <= 10i64).is_err());
+
+// Custom types implementing `PartialOrd`.
+// Clone and Copy are not required and are only used here for the example.
+#[derive(PartialEq, Clone, Copy)]
+struct MyFloat64(f64);
+
+impl PartialOrd for MyFloat64 {
+   fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+       return self.0.partial_cmp(&other.0);
+   }
+}
+
+let myfloat1 = MyFloat64(1.0);
+let myfloat2 = MyFloat64(2.0);
+assert!(compare_variables!(myfloat1 == myfloat1).is_ok());
+assert!(compare_variables!(myfloat1 <= myfloat2).is_ok());
+assert!(compare_variables!(myfloat1 >= myfloat2).is_err());
 ```
  */
 #[proc_macro]
@@ -94,7 +161,7 @@ pub fn compare_variables(input: TokenStream) -> TokenStream {
 
     // Build the input for the compare_variables function
     let stream = quote! {
-        compare_variables::ComparisonError::check(
+        compare_variables::ComparisonError::new(
             #first_arg,
             #relation_first_to_second,
             #second_arg,
@@ -107,7 +174,7 @@ pub fn compare_variables(input: TokenStream) -> TokenStream {
 }
 
 #[repr(u8)]
-enum Comparison {
+enum ComparisonError {
     Lesser,
     LesserOrEqual,
     Equal,
@@ -115,30 +182,30 @@ enum Comparison {
     Greater,
 }
 
-impl Comparison {
+impl ComparisonError {
     fn as_token_stream(&self) -> proc_macro2::TokenStream {
         match self {
-            Comparison::Lesser => {
+            ComparisonError::Lesser => {
                 quote! {
                     compare_variables::ComparisonOperator::Lesser
                 }
             }
-            Comparison::LesserOrEqual => {
+            ComparisonError::LesserOrEqual => {
                 quote! {
                     compare_variables::ComparisonOperator::LesserOrEqual
                 }
             }
-            Comparison::Equal => {
+            ComparisonError::Equal => {
                 quote! {
                     compare_variables::ComparisonOperator::Equal
                 }
             }
-            Comparison::GreaterOrEqual => {
+            ComparisonError::GreaterOrEqual => {
                 quote! {
                     compare_variables::ComparisonOperator::GreaterOrEqual
                 }
             }
-            Comparison::Greater => {
+            ComparisonError::Greater => {
                 quote! {
                     compare_variables::ComparisonOperator::Greater
                 }
@@ -148,7 +215,7 @@ impl Comparison {
 }
 
 enum VariableOrLiteral {
-    InfluencedByConditions {
+    Other {
         arg_names: Vec<syn::Ident>,
         arg_names_display: Vec<syn::Ident>,
     },
@@ -159,7 +226,7 @@ enum VariableOrLiteral {
 impl VariableOrLiteral {
     fn as_token_stream(&self) -> proc_macro2::TokenStream {
         match self {
-            VariableOrLiteral::InfluencedByConditions {
+            VariableOrLiteral::Other {
                 arg_names,
                 arg_names_display,
             } => {
@@ -176,13 +243,19 @@ impl VariableOrLiteral {
                         format!("could not interpret {arg_value} as rust code")
                     ),
                 };
-                let arg_name_display = arg_names_display
-                    .into_iter()
-                    .map(|ident| ident.to_string())
-                    .collect::<Vec<String>>()
-                    .join(".");
-                quote! {
-                    compare_variables::ComparisonValue::new(#arg_value_ts, Some(#arg_name_display))
+                if arg_names_display.is_empty() {
+                    quote! {
+                        compare_variables::ComparisonValue::new(#arg_value_ts, None)
+                    }
+                } else {
+                    let arg_name_display = arg_names_display
+                        .into_iter()
+                        .map(|ident| ident.to_string())
+                        .collect::<Vec<String>>()
+                        .join(".");
+                    quote! {
+                        compare_variables::ComparisonValue::new(#arg_value_ts, Some(#arg_name_display))
+                    }
                 }
             }
             VariableOrLiteral::LitFloat(lit) => {
@@ -202,9 +275,9 @@ impl VariableOrLiteral {
 // Parser for the compare_variables macro
 struct ComparisonErrorInfo {
     first_arg: VariableOrLiteral,
-    relation_first_to_second: Comparison,
+    relation_first_to_second: ComparisonError,
     second_arg: VariableOrLiteral,
-    relation_second_to_third: Comparison,
+    relation_second_to_third: ComparisonError,
     third_arg: Option<VariableOrLiteral>,
 }
 
@@ -220,6 +293,13 @@ impl Parse for ComparisonErrorInfo {
                 let val = input.parse::<syn::LitInt>()?;
                 return Ok(VariableOrLiteral::LitInt(val));
             } else {
+                // If the first token is "raw", do not display the variable name
+                let no_arg_name_display = input.peek(Token![raw]);
+                if no_arg_name_display {
+                    // Remove the "raw" token
+                    let _ = input.parse::<Token![raw]>()?;
+                }
+
                 // Resolve field accesses like self.field or variable.field.field
                 let mut arg_names: Vec<Ident> = Vec::new();
                 loop {
@@ -235,12 +315,14 @@ impl Parse for ComparisonErrorInfo {
                     }
                 }
 
-                let mut arg_names_display: Vec<Ident> = Vec::new();
                 let arg_names_display = if input.peek(Token![as]) {
                     input.parse::<Token![as]>()?;
+                    let mut arg_names_display: Vec<Ident> = Vec::new();
                     loop {
                         let arg_name: Ident = input.call(Ident::parse_any)?; // parse_any also handles stuff like self
-                        arg_names_display.push(arg_name);
+                        if !no_arg_name_display {
+                            arg_names_display.push(arg_name);
+                        }
 
                         if input.peek(Token![.]) {
                             // Throw the token away
@@ -252,32 +334,38 @@ impl Parse for ComparisonErrorInfo {
                     }
                     arg_names_display
                 } else {
-                    arg_names.clone()
+                    if no_arg_name_display {
+                        Vec::new()
+                    } else {
+                        arg_names.clone()
+                    }
                 };
-                return Ok(VariableOrLiteral::InfluencedByConditions {
+                return Ok(VariableOrLiteral::Other {
                     arg_names,
                     arg_names_display,
                 });
             }
         }
 
-        fn parse_comparison_operator(input: &syn::parse::ParseStream) -> syn::Result<Comparison> {
+        fn parse_comparison_operator(
+            input: &syn::parse::ParseStream,
+        ) -> syn::Result<ComparisonError> {
             // If Token![<] is tested before Token![<=], then "<" is parsed, leaving only "=". This will then lead to a compile error.
             if input.peek(Token![<=]) {
                 input.parse::<Token![<=]>()?;
-                Ok(Comparison::LesserOrEqual)
+                Ok(ComparisonError::LesserOrEqual)
             } else if input.peek(Token![>=]) {
                 input.parse::<Token![>=]>()?;
-                Ok(Comparison::GreaterOrEqual)
+                Ok(ComparisonError::GreaterOrEqual)
             } else if input.peek(Token![==]) {
                 input.parse::<Token![==]>()?;
-                Ok(Comparison::Equal)
+                Ok(ComparisonError::Equal)
             } else if input.peek(Token![<]) {
                 input.parse::<Token![<]>()?;
-                Ok(Comparison::Lesser)
+                Ok(ComparisonError::Lesser)
             } else if input.peek(Token![>]) {
                 input.parse::<Token![>]>()?;
-                Ok(Comparison::Greater)
+                Ok(ComparisonError::Greater)
             } else {
                 Err(syn::Error::new(
                     input.span(),
@@ -296,7 +384,7 @@ impl Parse for ComparisonErrorInfo {
             if let Ok(operator) = parse_comparison_operator(&input) {
                 (operator, Some(parse_arg(&input)?))
             } else {
-                (Comparison::Equal, None)
+                (ComparisonError::Equal, None)
             };
 
         return Ok(ComparisonErrorInfo {

@@ -44,30 +44,21 @@ fn test_check_struct_fields() {
     let error_msg = compare_variables!(0.0 < instance.field1 as this_struct_instance.field1 < 1.0)
         .unwrap_err()
         .to_string();
-    assert!(error_msg.contains(
-        "constraint `0.0 < this_struct_instance.field1 (value: 1.0) < 1.0` is not fulfilled"
-    ));
+    assert!(error_msg.contains("`0.0 < this_struct_instance.field1 (value: 1.0) < 1.0` is false"));
 
     let error_msg = compare_variables!(0.0 > instance.field2)
         .unwrap_err()
         .to_string();
-    assert!(error_msg.contains("constraint `0.0 > instance.field2 (value: 2.0)` is not fulfilled"));
+    assert!(error_msg.contains("`0.0 > instance.field2 (value: 2.0)` is false"));
 
     let error_msg = instance
         .value_bigger_than_field1(1.0)
         .unwrap_err()
         .to_string();
-    assert!(
-        error_msg.contains(
-            "constraint `self.field1 (value: 1.0) < value (value: 1.0)` is not fulfilled"
-        )
-    );
+    assert!(error_msg.contains("`self.field1 (value: 1.0) < value (value: 1.0)` is false"));
     let error_msg = instance
         .value_bigger_than_field2(1.0)
         .unwrap_err()
         .to_string();
-    assert!(
-        error_msg
-            .contains("constraint `field2 (value: 2.0) < value (value: 1.0)` is not fulfilled")
-    );
+    assert!(error_msg.contains("`field2 (value: 2.0) < value (value: 1.0)` is false"));
 }

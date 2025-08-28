@@ -20,7 +20,7 @@ fn test_compare_variables_float() {
         let err = compare_variables!(zero < arg as alternative_arg <= one).unwrap_err();
         assert_eq!(
             format!("{}", err),
-            "constraint `zero (value: 0.0 m^1) < alternative_arg (value: 2.0 m^1) <= one (value: 1.0 m^1)` is not fulfilled"
+            "`zero (value: 0.0 m^1) < alternative_arg (value: 2.0 m^1) <= one (value: 1.0 m^1)` is false"
         );
     }
 }
