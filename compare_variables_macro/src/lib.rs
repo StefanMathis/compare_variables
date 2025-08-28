@@ -55,7 +55,7 @@ assert_eq!(checked_sub(2, 2).unwrap(), 0);
 assert!(checked_sub(2, 3).is_err());
 ```
 
-It is also possible to use named struct fields as inputs:
+It is also possible to use named and anonymous struct fields as inputs:
 
 ```
 use compare_variables::compare_variables;
@@ -63,42 +63,46 @@ use compare_variables::compare_variables;
 struct NamedField {
    x: f64
 }
-
 let n = NamedField {x: 1.0};
 assert!(compare_variables!(n.x > -1.0).is_ok());
 assert!(compare_variables!(n.x > 1.0).is_err());
+
+struct AnonymousField(i32);
+let a = AnonymousField(-5);
+assert!(compare_variables!(a.0 > -6).is_ok());
+assert!(compare_variables!(a.0 > 1).is_err());
 ```
 
 # Error message
 
 The error message is created via the struct [`ComparisonError`](https://docs.rs/compare_variables/0.1.0/compare_variables/struct.ComparisonError.html).
-Please refer to its documentation for more details. The keywords `raw` and `as` allow to customize the treatment of variable names in the error message:
+Please refer to its documentation for more details. The keywords `val` and `as` allow to customize the treatment of variable names in the error message:
 
 ```
 use compare_variables::compare_variables;
 
 // Error message with literals only
-let err = compare_variables!(5i32 <= -1i32);
-assert_eq!(err.unwrap_err().to_string(), "`5 <= -1` is false");
+let err = compare_variables!(5i32 <= -1i32).unwrap_err();
+assert_eq!(err.to_string(), "`5 <= -1` is false");
 
 let x = 1;
 let y = 2;
 
 // Default error message
-let err = compare_variables!(x > y);
-assert_eq!(err.unwrap_err().to_string(), "`x (value: 1) > y (value: 2)` is false");
+let err = compare_variables!(x > y).unwrap_err();
+assert_eq!(err.to_string(), "`x (value: 1) > y (value: 2)` is false");
 
 // Rename x in the error message
-let err = compare_variables!(x as variable > y);
-assert_eq!(err.unwrap_err().to_string(), "`variable (value: 1) > y (value: 2)` is false");
+let err = compare_variables!(x as variable > y).unwrap_err();
+assert_eq!(err.to_string(), "`variable (value: 1) > y (value: 2)` is false");
 
 // Only display the underlying value, not the variable name:
-let err = compare_variables!(raw x > y);
-assert_eq!(err.unwrap_err().to_string(), "`1 > y (value: 2)` is false");
+let err = compare_variables!(val x > y).unwrap_err();
+assert_eq!(err.to_string(), "`1 > y (value: 2)` is false");
 
-// `as` is ignored if used together with `raw`:
-let err = compare_variables!(raw x as variable > y);
-assert_eq!(err.unwrap_err().to_string(), "`1 > y (value: 2)` is false");
+// `as` is ignored if used together with `val`:
+let err = compare_variables!(val x as variable > y).unwrap_err();
+assert_eq!(err.to_string(), "`1 > y (value: 2)` is false");
 ```
 
 # Examples
@@ -111,7 +115,7 @@ assert!(compare_variables!(1.5 < 2.0 == 3.0).is_err());
 assert!(compare_variables!(1.7f32 == 1.7f32).is_ok());
 let f = 2.0;
 assert!(compare_variables!(f < 5.2).is_ok());
-assert!(compare_variables!(f as f_var == raw f).is_ok());
+assert!(compare_variables!(f as f_var == val f).is_ok());
 
 // Signed and unsigned integers
 assert!(compare_variables!(1i32 >= 2i32).is_err());
@@ -216,8 +220,8 @@ impl ComparisonError {
 
 enum VariableOrLiteral {
     Other {
-        arg_names: Vec<syn::Ident>,
-        arg_names_display: Vec<syn::Ident>,
+        arg_names: Vec<String>,
+        arg_names_display: Vec<String>,
     },
     LitFloat(syn::LitFloat),
     LitInt(syn::LitInt),
@@ -231,11 +235,7 @@ impl VariableOrLiteral {
                 arg_names_display,
             } => {
                 // Build a token stream out of arg_name and arg_name_display, using . as a delimiter
-                let arg_value = arg_names
-                    .into_iter()
-                    .map(|ident| ident.to_string())
-                    .collect::<Vec<String>>()
-                    .join(".");
+                let arg_value = arg_names.join(".");
                 let arg_value_ts: TokenStream2 = match str::parse::<TokenStream2>(&arg_value) {
                     Ok(ts) => ts,
                     Err(_) => abort!(
@@ -248,11 +248,7 @@ impl VariableOrLiteral {
                         compare_variables::ComparisonValue::new(#arg_value_ts, None)
                     }
                 } else {
-                    let arg_name_display = arg_names_display
-                        .into_iter()
-                        .map(|ident| ident.to_string())
-                        .collect::<Vec<String>>()
-                        .join(".");
+                    let arg_name_display = arg_names_display.join(".");
                     quote! {
                         compare_variables::ComparisonValue::new(#arg_value_ts, Some(#arg_name_display))
                     }
@@ -284,27 +280,18 @@ struct ComparisonErrorInfo {
 impl Parse for ComparisonErrorInfo {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         fn parse_arg(input: &syn::parse::ParseStream) -> syn::Result<VariableOrLiteral> {
-            if input.peek(syn::LitFloat) {
-                // Parse the float literal
-                let val = input.parse::<syn::LitFloat>()?;
-                return Ok(VariableOrLiteral::LitFloat(val));
-            } else if input.peek(syn::LitInt) {
-                // Parse the float literal
-                let val = input.parse::<syn::LitInt>()?;
-                return Ok(VariableOrLiteral::LitInt(val));
-            } else {
-                // If the first token is "raw", do not display the variable name
-                let no_arg_name_display = input.peek(Token![raw]);
-                if no_arg_name_display {
-                    // Remove the "raw" token
-                    let _ = input.parse::<Token![raw]>()?;
-                }
-
-                // Resolve field accesses like self.field or variable.field.field
-                let mut arg_names: Vec<Ident> = Vec::new();
+            fn parse_composite_varname(
+                input: &syn::parse::ParseStream,
+                vec: &mut Vec<String>,
+            ) -> syn::Result<()> {
                 loop {
-                    let arg_name: Ident = input.call(Ident::parse_any)?; // parse_any also handles stuff like self
-                    arg_names.push(arg_name);
+                    if input.peek(syn::LitInt) {
+                        let lit = input.parse::<syn::LitInt>()?;
+                        vec.push(lit.to_string());
+                    } else {
+                        let ident: syn::Ident = input.call(Ident::parse_any)?;
+                        vec.push(ident.to_string()); // parse_any also handles stuff like self
+                    }
 
                     if input.peek(Token![.]) {
                         // Throw the token away
@@ -314,38 +301,76 @@ impl Parse for ComparisonErrorInfo {
                         break;
                     }
                 }
+                return Ok(());
+            } // parse_composite_varname
 
-                let arg_names_display = if input.peek(Token![as]) {
-                    input.parse::<Token![as]>()?;
-                    let mut arg_names_display: Vec<Ident> = Vec::new();
-                    loop {
-                        let arg_name: Ident = input.call(Ident::parse_any)?; // parse_any also handles stuff like self
-                        if !no_arg_name_display {
-                            arg_names_display.push(arg_name);
-                        }
+            if input.peek(syn::LitFloat) {
+                // Parse the float literal
+                let val = input.parse::<syn::LitFloat>()?;
+                return Ok(VariableOrLiteral::LitFloat(val));
+            } else if input.peek(syn::LitInt) {
+                // Parse the float literal
+                let val = input.parse::<syn::LitInt>()?;
+                return Ok(VariableOrLiteral::LitInt(val));
+            } else {
+                let mut display_arg_names = true;
 
-                        if input.peek(Token![.]) {
-                            // Throw the token away
-                            let _ = input.parse::<Token![.]>()?;
-                        } else {
-                            // Field access is done ==> Finish the loop
-                            break;
-                        }
-                    }
-                    arg_names_display
+                // Input is possibly a variable name.
+                let mut arg_names: Vec<String> = Vec::new();
+
+                // First check if the first identifier is "val":
+                let first_ident: Ident = input.call(Ident::parse_any)?; // parse_any also handles stuff like self
+
+                // Next identifier is not a "." -> Check if first_ident is "val". If not, the macro is used wrong
+                if input.peek(Token![.]) {
+                    // Throw the token away
+                    let _ = input.parse::<Token![.]>()?;
+
+                    // Try continuing to parse and keep the first identifier
+                    arg_names.push(first_ident.to_string());
+                    parse_composite_varname(input, &mut arg_names)?;
                 } else {
-                    if no_arg_name_display {
-                        Vec::new()
+                    if input.peek(syn::Ident) {
+                        if first_ident == "val" {
+                            display_arg_names = false;
+
+                            // Try continuing to parse
+                            parse_composite_varname(input, &mut arg_names)?;
+                        } else {
+                            abort!(
+                                Span::call_site(),
+                                format!("found unexpected tokens behind {first_ident}")
+                            )
+                        }
                     } else {
+                        arg_names.push(first_ident.to_string());
+                    }
+                }
+
+                // Resolve the alias, if the variable name should be displayed
+                let arg_names_display: Vec<String> = if input.peek(Token![as]) {
+                    input.parse::<Token![as]>()?;
+                    let mut arg_names_display: Vec<String> = Vec::new();
+                    parse_composite_varname(input, &mut arg_names_display)?;
+                    if display_arg_names {
+                        arg_names_display
+                    } else {
+                        Vec::new()
+                    }
+                } else {
+                    if display_arg_names {
                         arg_names.clone()
+                    } else {
+                        Vec::new()
                     }
                 };
+
                 return Ok(VariableOrLiteral::Other {
                     arg_names,
                     arg_names_display,
                 });
             }
-        }
+        } // parse_arg
 
         fn parse_comparison_operator(
             input: &syn::parse::ParseStream,
@@ -372,7 +397,7 @@ impl Parse for ComparisonErrorInfo {
                     "no comparison operator could be identified. Valid operators are \"<\", \"<=\", \"==\", \">=\" or \">\".",
                 ))
             }
-        }
+        } // parse_comparison_operator
 
         // Read the arguments
         let first_arg: VariableOrLiteral = parse_arg(&input)?;

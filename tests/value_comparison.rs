@@ -51,21 +51,35 @@ fn test_compare_variables_usize() {
 }
 
 #[test]
-fn test_compare_variables_raw() {
+fn test_compare_variables_raw_value() {
     {
         let arg = 1usize;
-        let err = compare_variables!(0 > raw arg);
-        assert_eq!(format!("{}", err.unwrap_err()), "`0 > 1` is false");
+        let err = compare_variables!(0 > val arg).unwrap_err();
+        assert_eq!(err.to_string(), "`0 > 1` is false");
     }
     {
         let arg = 1usize;
-        let err = compare_variables!(0 > raw arg > 2);
-        assert_eq!(format!("{}", err.unwrap_err()), "`0 > 1 > 2` is false");
+        let err = compare_variables!(0 > val arg > 2).unwrap_err();
+        assert_eq!(err.to_string(), "`0 > 1 > 2` is false");
     }
     {
         let arg = 1usize;
-        let err = compare_variables!(0 > raw arg as alternative_arg);
-        assert_eq!(format!("{}", err.unwrap_err()), "`0 > 1` is false");
+        let err = compare_variables!(0 > val arg as alternative_arg).unwrap_err();
+        assert_eq!(err.to_string(), "`0 > 1` is false");
+    }
+    {
+        let val = 1usize;
+        let err = compare_variables!(0 > val val).unwrap_err();
+        assert_eq!(err.to_string(), "`0 > 1` is false");
+    }
+
+    {
+        let val = 1usize;
+        let err = compare_variables!(0 > val);
+        assert_eq!(
+            format!("{}", err.unwrap_err()),
+            "`0 > val (value: 1)` is false"
+        );
     }
 }
 
