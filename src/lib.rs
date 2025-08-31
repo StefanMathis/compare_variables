@@ -107,7 +107,7 @@ pub struct ComparisonError<T: PartialOrd> {
 
 impl<T: PartialOrd> ComparisonError<T> {
     /**
-    Construct a new instance of [`ComparisonError`] if the comparison defined by the input arguments fails.
+    Constructs a new instance of [`ComparisonError`] if the comparison defined by the input arguments fails.
 
     The `first_val` is compared to the `second_val` using the `comp_first_to_second` operator. If a `third_val` is given,
     it is compared to the second argument using the `comp_second_to_third` operator. If no `third_val` is given,
@@ -261,7 +261,7 @@ impl ComparisonOperator {
     }
 
     /**
-    Compare the ordering of two values.
+    Compares the ordering of two values.
 
     Returns the output of the following comparison: `first_val self second_val`.
     This is best illustrated via the following examples:
@@ -319,25 +319,25 @@ fn example() -> Result<(), Box<dyn ComparisonErrorTrait>> {
  */
 pub trait ComparisonErrorTrait: std::error::Error + Sync + Send + std::any::Any {
     /**
-    Write the representation of the first comparison value into the given formatter.
+    Writes the representation of the first comparison value into the given formatter.
     This function is especially useful if a [`ComparisonError`] is used as a trait
     object [`ComparisonErrorTrait`] in order to erase the underlying type.
      */
     fn fmt_first_val(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 
     /**
-    Write the representation of the second comparison value into the given formatter.
+    Writes the representation of the second comparison value into the given formatter.
     This function is especially useful if a [`ComparisonError`] is used as a trait
     object [`ComparisonErrorTrait`] in order to erase the underlying type.
      */
     fn fmt_second_val(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 
     /**
-    Write the representation of the third comparison value into the given formatter.
+    Writes the representation of the third comparison value into the given formatter.
     This function is especially useful if a [`ComparisonError`] is used as a trait
     object [`ComparisonErrorTrait`] in order to erase the underlying type.
 
-    If no third formatter exists, this function returns an error.
+    If no third value exists, this function returns an error.
      */
     fn fmt_third_val(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 
