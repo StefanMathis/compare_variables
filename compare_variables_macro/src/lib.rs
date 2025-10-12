@@ -428,7 +428,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_check_bounds_info() {
+    fn test_parse_check_bounds_info() {
         // Assert that the parse was successfull
 
         // Float
