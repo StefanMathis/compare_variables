@@ -60,7 +60,7 @@ assert_eq!(err.to_string(), "`x (value: 1) > y (value: 2)` is false");
 ## Construction via macro
 
 It is recommended to use the procedural macro [`compare_variables`] to construct this struct
-(available via the feature flag **proc_macro** which is enabled by default). With the macro,
+(available via the feature flag  `proc_macro ` which is enabled by default). With the macro,
 the previous example is simplified to:
 ```
 use compare_variables::compare_variables;
