@@ -1,22 +1,31 @@
 compare_variables
 =================
 
-A library for comparing the ordering of variables and producing useful error messages.
-
 [`ComparisonError`]: https://docs.rs/compare_variables/0.2.0/compare_variables/struct.ComparisonError.html
 [`PartialOrd`]: https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html
 [`compare_variables`]: https://docs.rs/compare_variables/0.2.0/compare_variables/macro.compare_variables.html
 
-This library is based on the struct [`ComparisonError`], which can be used to compare the partial ordering
-of two to three variables of any type `T` which implements the [`PartialOrd`] trait. If the comparison evaluates
-to false, [`ComparisonError`] can be formatted into a nice error message. To simplify the usage, the procedural
-macro [`compare_variables`] is provided via the feature flag `proc_macro` (enabled by default).
+A library for comparing the ordering of variables and producing useful error
+messages.
 
-The full API documentation is available at [https://docs.rs/compare_variables/0.2.0/compare_variables/](https://docs.rs/compare_variables/0.2.0/compare_variables/).
+This library is based on the struct [`ComparisonError`], which can be used to
+compare the partial ordering of two to three variables of any type `T` which
+implements the [`PartialOrd`] trait. If the comparison evaluates to false,
+[`ComparisonError`] can be formatted into a nice error message. To simplify the
+usage, the procedural macro [`compare_variables`] is provided via the feature
+flag `proc_macro` (enabled by default).
+
+The full API documentation is available at
+[https://docs.rs/compare_variables/0.2.0/compare_variables/](https://docs.rs/compare_variables/0.2.0/compare_variables/).
+
+> **Feedback welcome!**  
+> Found a bug, missing docs, or have a feature request?  
+> Please open an issue on GitHub.
 
 # Examples
 
-The type annotation of the error can be omitted and is only written out in these examples for clarity.
+The type annotation of the error can be omitted and is only written out in these
+examples for clarity.
 
 ```rust
 use compare_variables::{compare_variables, ComparisonError};
@@ -53,8 +62,9 @@ assert_eq!(err.to_string(), "`arg (value: 1) > 2 > z (value: 3)` is false");
 
 # Usage without the procedural macro
 
-In order to minimize dependencies, it is possible to use this crate without the  `proc_macro ` feature flag.
-Please see the docstring of [`ComparisonError`] for details.
+In order to minimize dependencies, it is possible to use this crate without the
+`proc_macro` feature flag. Please see the docstring of [`ComparisonError`] for
+details.
 
 ```rust
 use compare_variables::{compare_variables, ComparisonError, ComparisonValue, ComparisonOperator};
