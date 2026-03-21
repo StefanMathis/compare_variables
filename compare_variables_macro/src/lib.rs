@@ -13,20 +13,22 @@ A macro to compare types which implement `PartialOrd`.
 
 # Overview
 
-This macro performs comparison between two or three values of any type `T` which implements  `PartialOrd`.
-If the comparison evaluates to `true`, the macro returns `Result::Ok(())`, otherwise it returns a
-`Result::Err(compare_variables::ComparisonError)` which can be formatted into a string showcasing
-the failed comparison.
+This macro performs comparison between two or three values of any type `T` which
+implements  `PartialOrd`. If the comparison evaluates to `true`, the macro
+returns `Result::Ok(())`, otherwise it returns a
+`Result::Err(compare_variables::ComparisonError)` which can be formatted into a
+string showcasing the failed comparison.
 
 The macro syntax is
 ```math
-compare_variables(x * y)
+compare_variables(x _ y)
 ```
 for comparing two values and
 ```math
-compare_variables(x * y * z)
+compare_variables(x _ y _ z)
 ```
-for comparing three values with `*` being any of the comparison operators `<, <=, ==, >, >=`.
+for comparing three values with `_` being any of the comparison operators
+`<, <=, ==, !=, >, >=`.
 
 `x`, `y` and `z` can be either a literal (e.g. `3.141` or `1e10`) or a variable:
 
@@ -39,6 +41,7 @@ let x = 1;
 let y = 2;
 assert!(compare_variables!(x < 2 == y).is_ok());
 assert!(compare_variables!(x >= 2).is_err());
+assert!(compare_variables!(x != y).is_ok());
 ```
 
 It is possible to combine the macro with the question mark operator:
@@ -182,6 +185,7 @@ enum ComparisonError {
     Lesser,
     LesserOrEqual,
     Equal,
+    Inequal,
     GreaterOrEqual,
     Greater,
 }
@@ -204,6 +208,11 @@ impl ComparisonError {
                     compare_variables::ComparisonOperator::Equal
                 }
             }
+            ComparisonError::Inequal => {
+                quote! {
+                    compare_variables::ComparisonOperator::Inequal
+                }
+            }
             ComparisonError::GreaterOrEqual => {
                 quote! {
                     compare_variables::ComparisonOperator::GreaterOrEqual
@@ -214,6 +223,38 @@ impl ComparisonError {
                     compare_variables::ComparisonOperator::Greater
                 }
             }
+        }
+    }
+}
+
+impl Parse for ComparisonError {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        // If Token![<] is tested before Token![<=], then "<" is parsed, leaving only
+        // "=". This will then lead to a compile error.
+        if input.peek(Token![<=]) {
+            input.parse::<Token![<=]>()?;
+            Ok(ComparisonError::LesserOrEqual)
+        } else if input.peek(Token![>=]) {
+            input.parse::<Token![>=]>()?;
+            Ok(ComparisonError::GreaterOrEqual)
+        } else if input.peek(Token![==]) {
+            input.parse::<Token![==]>()?;
+            Ok(ComparisonError::Equal)
+        } else if input.peek(Token![!=]) {
+            input.parse::<Token![!=]>()?;
+            Ok(ComparisonError::Inequal)
+        } else if input.peek(Token![<]) {
+            input.parse::<Token![<]>()?;
+            Ok(ComparisonError::Lesser)
+        } else if input.peek(Token![>]) {
+            input.parse::<Token![>]>()?;
+            Ok(ComparisonError::Greater)
+        } else {
+            Err(syn::Error::new(
+                input.span(),
+                "no comparison operator could be identified. Valid
+                    operators are \"<\", \"<=\", \"==\", \"!=\", \">=\" or \">\".",
+            ))
         }
     }
 }
@@ -234,7 +275,8 @@ impl VariableOrLiteral {
                 arg_names,
                 arg_names_display,
             } => {
-                // Build a token stream out of arg_name and arg_name_display, using . as a delimiter
+                // Build a token stream out of arg_name and arg_name_display, using . as a
+                // delimiter
                 let arg_value = arg_names.join(".");
                 let arg_value_ts: TokenStream2 = match str::parse::<TokenStream2>(&arg_value) {
                     Ok(ts) => ts,
@@ -268,6 +310,102 @@ impl VariableOrLiteral {
     }
 }
 
+impl Parse for VariableOrLiteral {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        fn parse_composite_varname(
+            input: &syn::parse::ParseStream,
+            vec: &mut Vec<String>,
+        ) -> syn::Result<()> {
+            loop {
+                if input.peek(syn::LitInt) {
+                    let lit = input.parse::<syn::LitInt>()?;
+                    vec.push(lit.to_string());
+                } else {
+                    let ident: syn::Ident = input.call(Ident::parse_any)?;
+                    vec.push(ident.to_string()); // parse_any also handles stuff like self
+                }
+
+                if input.peek(Token![.]) {
+                    // Throw the token away
+                    let _ = input.parse::<Token![.]>()?;
+                } else {
+                    // Field access is done ==> Finish the loop
+                    break;
+                }
+            }
+            return Ok(());
+        } // parse_composite_varname
+
+        if input.peek(syn::LitFloat) {
+            // Parse the float literal
+            let val = input.parse::<syn::LitFloat>()?;
+            return Ok(VariableOrLiteral::LitFloat(val));
+        } else if input.peek(syn::LitInt) {
+            // Parse the float literal
+            let val = input.parse::<syn::LitInt>()?;
+            return Ok(VariableOrLiteral::LitInt(val));
+        } else {
+            let mut display_arg_names = true;
+
+            // Input is possibly a variable name.
+            let mut arg_names: Vec<String> = Vec::new();
+
+            // First check if the first identifier is "val":
+            let first_ident: Ident = input.call(Ident::parse_any)?; // parse_any also handles stuff like self
+
+            // Next identifier is not a "." -> Check if first_ident is "val". If not, the
+            // macro is used wrong
+            if input.peek(Token![.]) {
+                // Throw the token away
+                let _ = input.parse::<Token![.]>()?;
+
+                // Try continuing to parse and keep the first identifier
+                arg_names.push(first_ident.to_string());
+                parse_composite_varname(&input, &mut arg_names)?;
+            } else {
+                if input.peek(syn::Ident) {
+                    if first_ident == "val" {
+                        display_arg_names = false;
+
+                        // Try continuing to parse
+                        parse_composite_varname(&input, &mut arg_names)?;
+                    } else {
+                        abort!(
+                            Span::call_site(),
+                            format!("found unexpected tokens behind {first_ident}")
+                        )
+                    }
+                } else {
+                    arg_names.push(first_ident.to_string());
+                }
+            }
+
+            // Resolve the alias, if the variable name should be displayed
+            let arg_names_display: Vec<String> = if input.peek(Token![as]) {
+                input.parse::<Token![as]>()?;
+                let mut arg_names_display: Vec<String> = Vec::new();
+                parse_composite_varname(&input, &mut arg_names_display)?;
+                if display_arg_names {
+                    arg_names_display
+                } else {
+                    Vec::new()
+                }
+            } else {
+                if display_arg_names {
+                    arg_names.clone()
+                } else {
+                    Vec::new()
+                }
+            };
+
+            return Ok(VariableOrLiteral::Other {
+                arg_names,
+                arg_names_display,
+            });
+        }
+    }
+}
+
 // Parser for the compare_variables macro
 struct ComparisonErrorInfo {
     first_arg: VariableOrLiteral,
@@ -279,135 +417,15 @@ struct ComparisonErrorInfo {
 
 impl Parse for ComparisonErrorInfo {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        fn parse_arg(input: &syn::parse::ParseStream) -> syn::Result<VariableOrLiteral> {
-            fn parse_composite_varname(
-                input: &syn::parse::ParseStream,
-                vec: &mut Vec<String>,
-            ) -> syn::Result<()> {
-                loop {
-                    if input.peek(syn::LitInt) {
-                        let lit = input.parse::<syn::LitInt>()?;
-                        vec.push(lit.to_string());
-                    } else {
-                        let ident: syn::Ident = input.call(Ident::parse_any)?;
-                        vec.push(ident.to_string()); // parse_any also handles stuff like self
-                    }
-
-                    if input.peek(Token![.]) {
-                        // Throw the token away
-                        let _ = input.parse::<Token![.]>()?;
-                    } else {
-                        // Field access is done ==> Finish the loop
-                        break;
-                    }
-                }
-                return Ok(());
-            } // parse_composite_varname
-
-            if input.peek(syn::LitFloat) {
-                // Parse the float literal
-                let val = input.parse::<syn::LitFloat>()?;
-                return Ok(VariableOrLiteral::LitFloat(val));
-            } else if input.peek(syn::LitInt) {
-                // Parse the float literal
-                let val = input.parse::<syn::LitInt>()?;
-                return Ok(VariableOrLiteral::LitInt(val));
-            } else {
-                let mut display_arg_names = true;
-
-                // Input is possibly a variable name.
-                let mut arg_names: Vec<String> = Vec::new();
-
-                // First check if the first identifier is "val":
-                let first_ident: Ident = input.call(Ident::parse_any)?; // parse_any also handles stuff like self
-
-                // Next identifier is not a "." -> Check if first_ident is "val". If not, the macro is used wrong
-                if input.peek(Token![.]) {
-                    // Throw the token away
-                    let _ = input.parse::<Token![.]>()?;
-
-                    // Try continuing to parse and keep the first identifier
-                    arg_names.push(first_ident.to_string());
-                    parse_composite_varname(input, &mut arg_names)?;
-                } else {
-                    if input.peek(syn::Ident) {
-                        if first_ident == "val" {
-                            display_arg_names = false;
-
-                            // Try continuing to parse
-                            parse_composite_varname(input, &mut arg_names)?;
-                        } else {
-                            abort!(
-                                Span::call_site(),
-                                format!("found unexpected tokens behind {first_ident}")
-                            )
-                        }
-                    } else {
-                        arg_names.push(first_ident.to_string());
-                    }
-                }
-
-                // Resolve the alias, if the variable name should be displayed
-                let arg_names_display: Vec<String> = if input.peek(Token![as]) {
-                    input.parse::<Token![as]>()?;
-                    let mut arg_names_display: Vec<String> = Vec::new();
-                    parse_composite_varname(input, &mut arg_names_display)?;
-                    if display_arg_names {
-                        arg_names_display
-                    } else {
-                        Vec::new()
-                    }
-                } else {
-                    if display_arg_names {
-                        arg_names.clone()
-                    } else {
-                        Vec::new()
-                    }
-                };
-
-                return Ok(VariableOrLiteral::Other {
-                    arg_names,
-                    arg_names_display,
-                });
-            }
-        } // parse_arg
-
-        fn parse_comparison_operator(
-            input: &syn::parse::ParseStream,
-        ) -> syn::Result<ComparisonError> {
-            // If Token![<] is tested before Token![<=], then "<" is parsed, leaving only "=". This will then lead to a compile error.
-            if input.peek(Token![<=]) {
-                input.parse::<Token![<=]>()?;
-                Ok(ComparisonError::LesserOrEqual)
-            } else if input.peek(Token![>=]) {
-                input.parse::<Token![>=]>()?;
-                Ok(ComparisonError::GreaterOrEqual)
-            } else if input.peek(Token![==]) {
-                input.parse::<Token![==]>()?;
-                Ok(ComparisonError::Equal)
-            } else if input.peek(Token![<]) {
-                input.parse::<Token![<]>()?;
-                Ok(ComparisonError::Lesser)
-            } else if input.peek(Token![>]) {
-                input.parse::<Token![>]>()?;
-                Ok(ComparisonError::Greater)
-            } else {
-                Err(syn::Error::new(
-                    input.span(),
-                    "no comparison operator could be identified. Valid operators are \"<\", \"<=\", \"==\", \">=\" or \">\".",
-                ))
-            }
-        } // parse_comparison_operator
-
         // Read the arguments
-        let first_arg: VariableOrLiteral = parse_arg(&input)?;
-        let relation_first_to_second = parse_comparison_operator(&input)?;
-        let second_arg: VariableOrLiteral = parse_arg(&input)?;
+        let first_arg = VariableOrLiteral::parse(&input)?;
+        let relation_first_to_second = ComparisonError::parse(&input)?;
+        let second_arg = VariableOrLiteral::parse(&input)?;
 
         // If the input continues, parse the third argument
         let (relation_second_to_third, third_arg) =
-            if let Ok(operator) = parse_comparison_operator(&input) {
-                (operator, Some(parse_arg(&input)?))
+            if let Ok(operator) = ComparisonError::parse(&input) {
+                (operator, Some(VariableOrLiteral::parse(&input)?))
             } else {
                 (ComparisonError::Equal, None)
             };

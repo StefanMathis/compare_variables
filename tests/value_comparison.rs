@@ -10,6 +10,10 @@ fn test_compare_variables_float() {
     assert!(res.is_ok());
 
     let arg = 2.0;
+    let res = compare_variables!(arg != 2.0);
+    assert!(res.is_err());
+
+    let arg = 2.0;
     let res = compare_variables!(0.0 < arg as alternative_arg <= 1.0);
     assert!(res.is_err());
 

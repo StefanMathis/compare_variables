@@ -55,6 +55,15 @@ let err = ComparisonError::new(
     None,
 ).unwrap_err();
 assert_eq!(err.to_string(), "`x (value: 1) > y (value: 2)` is false");
+
+let err = ComparisonError::new(
+    ComparisonValue::new(1, Some("x")),
+    ComparisonOperator::Inequal,
+    ComparisonValue::new(1, Some("x")),
+    ComparisonOperator::Equal,
+    None,
+).unwrap_err();
+assert_eq!(err.to_string(), "`x (value: 1) != x (value: 1)` is false");
 ```
 
 ## Construction via macro
@@ -242,6 +251,7 @@ pub enum ComparisonOperator {
     Lesser,
     LesserOrEqual,
     Equal,
+    Inequal,
     GreaterOrEqual,
     Greater,
 }
@@ -255,6 +265,7 @@ impl ComparisonOperator {
             ComparisonOperator::Lesser => "<",
             ComparisonOperator::LesserOrEqual => "<=",
             ComparisonOperator::Equal => "==",
+            ComparisonOperator::Inequal => "!=",
             ComparisonOperator::GreaterOrEqual => ">=",
             ComparisonOperator::Greater => ">",
         }
@@ -278,6 +289,7 @@ impl ComparisonOperator {
             ComparisonOperator::Lesser => return first_val < second_val,
             ComparisonOperator::LesserOrEqual => return first_val <= second_val,
             ComparisonOperator::Equal => return first_val == second_val,
+            ComparisonOperator::Inequal => return first_val != second_val,
             ComparisonOperator::GreaterOrEqual => return first_val >= second_val,
             ComparisonOperator::Greater => return first_val > second_val,
         }

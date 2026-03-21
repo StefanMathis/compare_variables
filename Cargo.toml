@@ -1,14 +1,14 @@
 [package]
 name = "compare_variables"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "A Rust procedural macro for comparing the ordering of variables and creating useful error messages"
 readme = "README.md"
 license  = "MIT OR Apache-2.0"
-repository = "https://github.com/StefanMathis/cart_lin.git"
+repository = "https://github.com/StefanMathis/compare_variables.git"
 
 [dependencies]
-compare_variables_macro = { version = "0.2.0", path = "compare_variables_macro", optional = true}
+compare_variables_macro = { version = "0.2.1", path = "compare_variables_macro", optional = true}
 
 [features]
 default = ["proc_macro"]

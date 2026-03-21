@@ -1,11 +1,11 @@
 [package]
 name = "compare_variables_macro"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "Procedural macro for crate `compare_variables`"
 readme = "README.md"
 license  = "MIT OR Apache-2.0"
-repository = "https://github.com/StefanMathis/cart_lin.git"
+repository = "https://github.com/StefanMathis/compare_variables.git"
 
 [lib]
 proc-macro = true

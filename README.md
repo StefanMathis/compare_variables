@@ -1,9 +1,9 @@
 compare_variables
 =================
 
-[`ComparisonError`]: https://docs.rs/compare_variables/0.2.0/compare_variables/struct.ComparisonError.html
+[`ComparisonError`]: https://docs.rs/compare_variables/0.2.1/compare_variables/struct.ComparisonError.html
 [`PartialOrd`]: https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html
-[`compare_variables`]: https://docs.rs/compare_variables/0.2.0/compare_variables/macro.compare_variables.html
+[`compare_variables`]: https://docs.rs/compare_variables/0.2.1/compare_variables/macro.compare_variables.html
 
 A library for comparing the ordering of variables and producing useful error
 messages.
@@ -16,7 +16,7 @@ usage, the procedural macro [`compare_variables`] is provided via the feature
 flag `proc_macro` (enabled by default).
 
 The full API documentation is available at
-[https://docs.rs/compare_variables/0.2.0/compare_variables/](https://docs.rs/compare_variables/0.2.0/compare_variables/).
+[https://docs.rs/compare_variables/0.2.0/compare_variables/](https://docs.rs/compare_variables/0.2.1/compare_variables/).
 
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
@@ -36,7 +36,9 @@ assert!(compare_variables!(0.0 < x <= 1.0).is_ok());
 let err: ComparisonError<f64> = compare_variables!(x > 1.5).unwrap_err();
 assert_eq!(err.to_string(), "`x (value: 1.0) > 1.5` is false");
 
+// Check for equality and inequality
 assert!(compare_variables!(1.0 == x < 5.0).is_ok());
+assert!(compare_variables!(2.0 != x).is_ok());
 
 // Named and unnamed struct fields can also be used:
 struct NamedField {
