@@ -12,6 +12,10 @@ messages.
 
 The full API documentation is available at https://docs.rs/compare_variables/0.2.1/compare_variables.
 
+> **Feedback welcome!**  
+> Found a bug, missing docs, or have a feature request?  
+> Please open an issue on GitHub.
+
 This library is based on the struct [`ComparisonError`], which can be used to
 compare the partial ordering of two to three variables of any type `T` which
 implements the [`PartialOrd`] trait. If the comparison evaluates to false,
