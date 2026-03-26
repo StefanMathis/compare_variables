@@ -5,8 +5,12 @@ compare_variables
 [`PartialOrd`]: https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html
 [`compare_variables`]: https://docs.rs/compare_variables/0.2.1/compare_variables/macro.compare_variables.html
 
+[![Documentation](https://docs.rs/compare_variables/badge.svg)](https://docs.rs/compare_variables)
+
 A library for comparing the ordering of variables and producing useful error
 messages.
+
+The full API documentation is available at https://docs.rs/compare_variables/0.2.1/compare_variables.
 
 This library is based on the struct [`ComparisonError`], which can be used to
 compare the partial ordering of two to three variables of any type `T` which
