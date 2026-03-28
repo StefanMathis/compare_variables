@@ -1,4 +1,13 @@
-#![doc = include_str!("../README.md")]
+/*!
+[`ComparisonError`]: crate::ComparisonError
+[`PartialOrd`]: std::cmp::PartialOrd
+[`compare_variables`]: crate::compare_variables
+
+A library for comparing the ordering of variables and producing useful error
+messages.
+
+ */
+#![doc = include_str!("../docs/main.md")]
 
 #[cfg(feature = "proc_macro")]
 pub use compare_variables_macro::compare_variables;
