@@ -14,10 +14,9 @@ A macro to compare types which implement `PartialOrd`.
 # Overview
 
 This macro performs comparison between two or three values of any type `T` which
-implements  `PartialOrd`. If the comparison evaluates to `true`, the macro
-returns `Result::Ok(())`, otherwise it returns a
-`Result::Err(compare_variables::Operator)` which can be formatted into a
-string showcasing the failed comparison.
+implements  `PartialOrd` and creates a `compare_variables::Comparison` struct.
+If the comparison evaluates to `true`, the struct is wrapped in [`Ok`],
+otherwise in [`Err`] to allow easy usage with the `?` operator.
 
 The macro syntax is
 ```math
@@ -44,7 +43,7 @@ assert!(compare_variables!(x >= 2).is_err());
 assert!(compare_variables!(x != y).is_ok());
 ```
 
-It is possible to combine the macro with the question mark operator:
+The following example shows how the macro can be combined with `?`:
 ```rust
 use compare_variables::{compare_variables, Operator};
 
@@ -76,35 +75,35 @@ assert!(compare_variables!(a.0 > -6).is_ok());
 assert!(compare_variables!(a.0 > 1).is_err());
 ```
 
-# Error message
+# Customizing the message
 
-The error message is created via the struct [`Operator`](https://docs.rs/compare_variables/0.1.0/compare_variables/struct.Operator.html).
-Please refer to its documentation for more details. The keywords `val` and `as` allow to customize the treatment of variable names in the error message:
+The keywords `val` and `as` allow to customize the treatment of variable names
+in the message:
 
 ```
 use compare_variables::compare_variables;
 
 // Error message with literals only
-let err = compare_variables!(5i32 <= -1i32).unwrap_err();
-assert_eq!(err.to_string(), "`5 <= -1` is false");
+let err = compare_variables!(5i32 >= -1i32).unwrap_or_else(|x| x);
+assert_eq!(err.to_string(), "`5 >= -1` is true");
 
 let x = 1;
 let y = 2;
 
 // Default error message
-let err = compare_variables!(x > y).unwrap_err();
+let err = compare_variables!(x > y).unwrap_or_else(|x| x);
 assert_eq!(err.to_string(), "`x (value: 1) > y (value: 2)` is false");
 
 // Rename x in the error message
-let err = compare_variables!(x as variable > y).unwrap_err();
-assert_eq!(err.to_string(), "`variable (value: 1) > y (value: 2)` is false");
+let err = compare_variables!(x as variable < y).unwrap_or_else(|x| x);
+assert_eq!(err.to_string(), "`variable (value: 1) > y (value: 2)` is true");
 
 // Only display the underlying value, not the variable name:
-let err = compare_variables!(val x > y).unwrap_err();
+let err = compare_variables!(val x > y).unwrap_or_else(|x| x);
 assert_eq!(err.to_string(), "`1 > y (value: 2)` is false");
 
 // `as` is ignored if used together with `val`:
-let err = compare_variables!(val x as variable > y).unwrap_err();
+let err = compare_variables!(val x as variable > y).unwrap_or_else(|x| x);
 assert_eq!(err.to_string(), "`1 > y (value: 2)` is false");
 ```
 
@@ -129,7 +128,7 @@ assert!(compare_variables!(-10i64 <= i).is_ok());
 assert!(compare_variables!(-10i64 <= i <= 10i64).is_err());
 
 // Custom types implementing `PartialOrd`.
-// Clone and Copy are not required and are only used here for the example.
+// Clone and Copy are not required and are only used here to simplify the example.
 #[derive(PartialEq, Clone, Copy)]
 struct MyFloat64(f64);
 

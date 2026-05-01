@@ -14,11 +14,15 @@ pub use compare_variables_macro::compare_variables;
 // ===============================================================================================
 
 /**
-Compare the [partial ordering](https://en.wikipedia.org/wiki/Partially_ordered_set) of two or three values and format the result into a message.
+Compare the [partial ordering](PartialOrd) of two or three variables and format
+the result into a message.
 
-The constructor [`Comparison::new`] compares two to three input values with each other using the given [`ComparisonOperator`]s and returns an instance
-of this struct as an `Result::Err(Comparison)` if the comparison returned "false" (otherwise, [`Comparison::new`] returns `Result::Ok(())`).
-This is done in order to allow seamless operation with the `?` operator.
+The constructor [`Comparison::new`] compares two to three input values with each
+other using the given [`ComparisonOperator`]s and returns an instance of this
+struct. The method [`Comparison::is_true`] can then be used to verify whether
+the comparison evaluates to true or not. For seamless operation with the `?`
+operator, [`Comparison::new_checked`] creates a [`Comparison`] which is wrapped
+in [`Ok`] if [`Comparison::is_true`] and in [`Err`] otherwise.
 
 # Examples
 ```
@@ -42,75 +46,57 @@ assert_eq!(err.to_string(), "`1 > 2` is false");
 
 ## Variable names
 
-It is possible to specify variable names which are then included in the error message string:
+It is possible to specify variable names which are then included in the error
+message string:
 ```
 use compare_variables::{Comparison, ComparisonValue, ComparisonOperator};
 
-let err = Comparison::new(
+let cmp = Comparison::new(
     ComparisonValue::new(1, Some("x")),
     ComparisonOperator::Greater,
     ComparisonValue::new(2, None),
     ComparisonOperator::Equal,
     None,
-).unwrap_err();
-assert_eq!(err.to_string(), "`x (value: 1) > 2` is false");
+);
+assert_eq!(cmp.to_string(), "`x (value: 1) > 2` is false");
 
-let err = Comparison::new(
+let cmp = Comparison::new(
     ComparisonValue::new(1, Some("x")),
     ComparisonOperator::Greater,
     ComparisonValue::new(2, Some("y")),
     ComparisonOperator::Equal,
     None,
-).unwrap_err();
-assert_eq!(err.to_string(), "`x (value: 1) > y (value: 2)` is false");
+);
+assert_eq!(cmp.to_string(), "`x (value: 1) > y (value: 2)` is false");
 
-let err = Comparison::new(
+let cmp = Comparison::new_checked(
     ComparisonValue::new(1, Some("x")),
     ComparisonOperator::Inequal,
     ComparisonValue::new(1, Some("x")),
     ComparisonOperator::Equal,
     None,
-).unwrap_err();
-assert_eq!(err.to_string(), "`x (value: 1) != x (value: 1)` is false");
+);
+assert_eq!(cmp.to_string(), "`x (value: 1) != x (value: 1)` is false");
 ```
 
 ## Construction via macro
 
-It is recommended to use the procedural macro [`compare_variables`] to construct this struct
-(available via the feature flag  `proc_macro ` which is enabled by default). With the macro,
-the previous example is simplified to:
+It is recommended to use the procedural macro [`compare_variables`] to construct
+this struct (available via the feature flag  `proc_macro ` which is enabled by
+default). With the macro, the previous example simplifies to:
 ```
 use compare_variables::compare_variables;
 
 let x = 1;
 let y = 2;
 
-let err = compare_variables!(x > 2).unwrap_err();
+let msg = compare_variables!(x > 2).unwrap_or_else(|x| x);
 assert_eq!(err.to_string(), "`x (value: 1) > 2` is false");
 
-let err = compare_variables!(x > y).unwrap_err();
+let msg = compare_variables!(x > y).unwrap_or_else(|x| x);
 assert_eq!(err.to_string(), "`x (value: 1) > y (value: 2)` is false");
 ```
 For more examples, consult the macro documentation.
-
-## Customize error messages
-
-The error messages are build by concatenating the format strings of the given [`ComparisonValue`]s and [`ComparisonOperator`]s.
-These components can be accessed individually in order to build custom error messages:
-
-```
-use compare_variables::{Comparison, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
-
-let err = Comparison::new(
-    ComparisonValue::new(1, None),
-    ComparisonOperator::Greater,
-    ComparisonValue::new(2, None),
-    ComparisonOperator::Equal,
-    None,
-).unwrap_err();
-
-assert_eq!(err.to_string(), "`1 > 2` is false");
-```
  */
 #[derive(Clone)]
 pub struct Comparison<T: PartialOrd> {
@@ -119,38 +105,34 @@ pub struct Comparison<T: PartialOrd> {
     second_val: ComparisonValue<T>,
     comp_second_to_third: ComparisonOperator,
     third_val: Option<ComparisonValue<T>>,
+    is_true: bool,
 }
 
 impl<T: PartialOrd> Comparison<T> {
     /**
-    Returns a new [`Comparison`] without actually checking if the
-    comparison evaluates to true or false.
+    Returns a new [`Comparison`] by comparing two or three values.
 
-    This constructor is useful if one already knows that the comparison
-    evaluates to false or if an error message is needed regardless whether
-
+    # Examples
     ```
     use compare_variables::{Comparison, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
 
-    //
-    let err = Comparison::new_unchecked(
-        ComparisonValue::new(1, Some("x")),
-        ComparisonOperator::Greater,
-        ComparisonValue::new(2, None),
-        ComparisonOperator::Equal,
-        None,
-    );
-    assert_eq!(err.to_string(), "`x (value: 1) > 2` is false");
-
-    // This comparison is true, but with new_unchecked, we can create an error message regardless
-    let err = Comparison::new_unchecked(
+    let cmp = Comparison::new(
         ComparisonValue::new(1, None),
         ComparisonOperator::Lesser,
         ComparisonValue::new(2, None),
         ComparisonOperator::Equal,
         None,
     );
-    assert_eq!(err.to_string(), "`1 < 2` is false");
+    assert_eq!(cmp.to_string(), "`1 < 2` is true");
+
+    let cmp = Comparison::new(
+        ComparisonValue::new(1, Some("x")),
+        ComparisonOperator::Greater,
+        ComparisonValue::new(2, None),
+        ComparisonOperator::Equal,
+        None,
+    );
+    assert_eq!(cmp.to_string(), "`x (value: 1) > 2` is false");
     ```
     */
     pub fn new(
@@ -160,30 +142,73 @@ impl<T: PartialOrd> Comparison<T> {
         comp_second_to_third: ComparisonOperator,
         third_val: Option<ComparisonValue<T>>,
     ) -> Self {
+        let mut is_true = true;
+        if !comp_first_to_second.is_true(&first_val.value, &second_val.value) {
+            is_true = false;
+        }
+        if let Some(third_val) = third_val.as_ref() {
+            if !comp_second_to_third.is_true(&second_val.value, &third_val.value) {
+                is_true = false;
+            }
+        };
+
         return Self {
             first_val,
             comp_first_to_second,
             second_val,
             comp_second_to_third,
             third_val,
+            is_true,
         };
     }
 
     /**
-    Returns a new instance of [`Comparison`] if the comparison evaluates to
-    false.
+    Returns a new instance of [`Comparison`] and wraps it in [`Ok`] if
+    [`Comparison::is_true`] is true and in [`Err`] otherwise.
 
-    The `first_val` is compared to the `second_val` using the
-    `comp_first_to_second` operator. If a `third_val` is given, it is compared
-    to the second argument using the `comp_second_to_third` operator. If no
-    `third_val` is given, `comp_second_to_third` is not used internally (and can
-    therefore be set to any variant of [`ComparisonOperator`]). If one of these
-    comparisons evaluate to false, an instance of [`Comparison`] is
-    returned as an `Result::Err(Comparison)`. Otherwise, this method
-    returns `Result::Ok(())`). This is done to allow seamless usage with
-    the `?` operator.
+    This method is useful when used in conjunction with the `?` operator:
 
-    For examples, see the docstring of [`Comparison`].
+    ```
+    use compare_variables::{Comparison, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
+
+    fn smaller_than_zero(input: i32) -> Result<(), Comparison<i32>> {
+        Comparison::new_checked(
+            ComparisonValue::new(0, None),
+            ComparisonOperator::Greater,
+            ComparisonValue::new(input, Some("input")),
+            ComparisonOperator::Equal,
+            None,
+        )?;
+    }
+    assert!(smaller_than_zero(-3).is_ok());
+    assert_eq!(smaller_than_zero(3).unwrap_err().to_string(), "`0 > input (value: -3)` is false");
+    ```
+
+    To unwrap the underlying [`Comparison`] regardless of whether the comparison
+    evaluated to true or false, the pattern `.unwrap_or_else(|x| x)` can be used
+    on the returned result.
+
+    ```
+    use compare_variables::{Comparison, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
+
+    let ok = Comparison::new_checked(
+        ComparisonValue::new(0, None),
+        ComparisonOperator::Greater,
+        ComparisonValue::new(2, None)),
+        ComparisonOperator::Equal,
+        None,
+    );
+    assert_eq!(ok.unwrap_or_else(|x| x).to_string(), "`0 > input (value: -3)` is false");
+
+    let err = Comparison::new_checked(
+        ComparisonValue::new(0, None),
+        ComparisonOperator::Lesser,
+        ComparisonValue::new(2, None)),
+        ComparisonOperator::Equal,
+        None,
+    );
+    assert_eq!(err.unwrap_or_else(|x| x).to_string(), "`0 > input (value: -3)` is false");
+    ```
      */
     pub fn new_checked(
         first_val: ComparisonValue<T>,
@@ -191,31 +216,20 @@ impl<T: PartialOrd> Comparison<T> {
         second_val: ComparisonValue<T>,
         comp_second_to_third: ComparisonOperator,
         third_val: Option<ComparisonValue<T>>,
-    ) -> Result<(), Self> {
-        // Check the relationship between the first and second argument
-        if !comp_first_to_second.is_true(&first_val.value, &second_val.value) {
-            return Err(Self {
-                first_val,
-                comp_first_to_second,
-                second_val,
-                comp_second_to_third,
-                third_val,
-            });
+    ) -> Result<Self, Self> {
+        let this = Self::new(
+            first_val,
+            comp_first_to_second,
+            second_val,
+            comp_second_to_third,
+            third_val,
+        );
+
+        if this.is_true() {
+            return Ok(this);
+        } else {
+            return Err(this);
         }
-
-        if let Some(third_val) = third_val {
-            if !comp_second_to_third.is_true(&second_val.value, &third_val.value) {
-                return Err(Self {
-                    first_val,
-                    comp_first_to_second,
-                    second_val,
-                    comp_second_to_third,
-                    third_val: Some(third_val),
-                });
-            }
-        };
-
-        return Ok(());
     }
 
     /**
@@ -238,6 +252,37 @@ impl<T: PartialOrd> Comparison<T> {
     pub fn third_val(&self) -> Option<&ComparisonValue<T>> {
         return self.third_val.as_ref();
     }
+
+    /**
+    Returns the comparison operator between the first and second value.
+     */
+    pub fn comp_first_to_second(&self) -> ComparisonOperator {
+        return self.comp_first_to_second;
+    }
+
+    /**
+    Returns the comparison operator between the second and third value.
+     */
+    pub fn comp_second_to_third(&self) -> ComparisonOperator {
+        return self.comp_second_to_third;
+    }
+
+    /**
+    Returns whether the comparison evaluates to true or false.
+
+    To evaluate the comparison, [`Comparison::first_val`] is compared to
+    [`Comparison::second_val`] using the [`Comparison::comp_first_to_second`]
+    operator. If a [`Comparison::third_val`] has been given, it is compared to
+    [`Comparison::second_val`] using the [`Comparison::comp_second_to_third`]
+    operator. If both these individual comparisons return true, this method
+    returns true as well.
+
+    This method is used within [`Comparison::new_checked`] to decide whether the
+    [`Comparison`] should be wrapped in [`Ok`] or [`Err`].
+     */
+    pub fn is_true(&self) -> bool {
+        self.is_true
+    }
 }
 
 impl<T: PartialOrd + std::fmt::Debug> std::error::Error for Comparison<T> {}
@@ -259,7 +304,11 @@ impl<T: PartialOrd + std::fmt::Debug> std::fmt::Display for Comparison<T> {
         if let Some(third_val) = self.third_val.as_ref() {
             write!(f, " {} {}", self.comp_second_to_third, third_val)?;
         }
-        write!(f, "` is false")
+        if self.is_true() {
+            write!(f, "` is true")
+        } else {
+            write!(f, "` is false")
+        }
     }
 }
 
