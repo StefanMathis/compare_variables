@@ -5,16 +5,16 @@ compare_variables
 docs/main.md and (if available docs/end.md). Do not modify this file, instead
 modify the components. -->
 
-[`ComparisonError`]: https://docs.rs/compare_variables/0.2.1/compare_variables/struct.ComparisonError.html
+[`ComparisonError`]: https://docs.rs/compare_variables/0.2.2/compare_variables/struct.ComparisonError.html
 [`PartialOrd`]: https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html
-[`compare_variables`]: https://docs.rs/compare_variables/0.2.1/compare_variables/macro.compare_variables.html
+[`compare_variables`]: https://docs.rs/compare_variables/0.2.2/compare_variables/macro.compare_variables.html
 
 [![Documentation](https://docs.rs/compare_variables/badge.svg)](https://docs.rs/compare_variables)
 
 A library for comparing the ordering of variables and producing useful error
 messages.
 
-The full API documentation is available at https://docs.rs/compare_variables/0.2.1/compare_variables.
+The full API documentation is available at https://docs.rs/compare_variables/0.2.2/compare_variables.
 
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  

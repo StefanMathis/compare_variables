@@ -110,8 +110,7 @@ let err = ComparisonError::new(
     None,
 ).unwrap_err();
 
-let my_error_msg = format!("Condition `{} {} {}` is not fulfilled", err.first_val(), err.comp_first_to_second(), err.second_val());
-assert_eq!(my_error_msg, "Condition `1 > 2` is not fulfilled");
+assert_eq!(err.to_string(), "`1 > 2` is false");
 ```
  */
 #[derive(Clone)]
@@ -125,14 +124,18 @@ pub struct ComparisonError<T: PartialOrd> {
 
 impl<T: PartialOrd> ComparisonError<T> {
     /**
-    Constructs a new instance of [`ComparisonError`] if the comparison defined by the input arguments fails.
+    Returns a new instance of [`ComparisonError`] if the comparison evaluates to
+    false.
 
-    The `first_val` is compared to the `second_val` using the `comp_first_to_second` operator. If a `third_val` is given,
-    it is compared to the second argument using the `comp_second_to_third` operator. If no `third_val` is given,
-    `comp_second_to_third` is not used internally (and can therefore be chosen arbitrarily). If one of these comparisons
-    evaluate to false, an instance of [`ComparisonError`] is returned as an `Result::Err(ComparisonError)`.
-    Otherwise, [`ComparisonError::new`] returns `Result::Ok(())`). This is done in order to allow seamless operation with the `?`
-    operator.
+    The `first_val` is compared to the `second_val` using the
+    `comp_first_to_second` operator. If a `third_val` is given, it is compared
+    to the second argument using the `comp_second_to_third` operator. If no
+    `third_val` is given, `comp_second_to_third` is not used internally (and can
+    therefore be set to any variant of [`ComparisonOperator`]). If one of these
+    comparisons evaluate to false, an instance of [`ComparisonError`] is
+    returned as an `Result::Err(ComparisonError)`. Otherwise, this method
+    returns `Result::Ok(())`). This is done to allow seamless usage with
+    the `?` operator.
 
     For examples, see the docstring of [`ComparisonError`].
      */
@@ -167,6 +170,43 @@ impl<T: PartialOrd> ComparisonError<T> {
         };
 
         return Ok(());
+    }
+
+    /**
+    Returns a new [`ComparisonError`] without actually checking if the
+    comparison evaluates to true or false.
+
+    This constructor is useful if one already knows that the comparison
+    evaluates to false:
+
+    ```
+    use compare_variables::{ComparisonError, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
+
+    let err = ComparisonError::new_unchecked(
+        ComparisonValue::new(1, Some("x")),
+        ComparisonOperator::Greater,
+        ComparisonValue::new(2, None),
+        ComparisonOperator::Equal,
+        None,
+    );
+
+    assert_eq!(err.to_string(), "`x (value: 1) > 2` is false");
+    ```
+    */
+    pub fn new_unchecked(
+        first_val: ComparisonValue<T>,
+        comp_first_to_second: ComparisonOperator,
+        second_val: ComparisonValue<T>,
+        comp_second_to_third: ComparisonOperator,
+        third_val: Option<ComparisonValue<T>>,
+    ) -> Self {
+        return Self {
+            first_val,
+            comp_first_to_second,
+            second_val,
+            comp_second_to_third,
+            third_val,
+        };
     }
 
     /**
