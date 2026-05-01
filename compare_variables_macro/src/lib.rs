@@ -45,9 +45,9 @@ assert!(compare_variables!(x != y).is_ok());
 
 The following example shows how the macro can be combined with `?`:
 ```rust
-use compare_variables::{compare_variables, Operator};
+use compare_variables::{compare_variables, Comparison};
 
-fn checked_sub(left: u16, right: u16) -> Result<u16, Operator<u16>> {
+fn checked_sub(left: u16, right: u16) -> Result<u16, Comparison<u16>> {
     compare_variables!(left >= right)?;
     return Ok(left - right);
 }
@@ -95,8 +95,8 @@ let err = compare_variables!(x > y).unwrap_or_else(|x| x);
 assert_eq!(err.to_string(), "`x (value: 1) > y (value: 2)` is false");
 
 // Rename x in the error message
-let err = compare_variables!(x as variable < y).unwrap_or_else(|x| x);
-assert_eq!(err.to_string(), "`variable (value: 1) > y (value: 2)` is true");
+let err = compare_variables!(x as variable <= y).unwrap_or_else(|x| x);
+assert_eq!(err.to_string(), "`variable (value: 1) <= y (value: 2)` is true");
 
 // Only display the underlying value, not the variable name:
 let err = compare_variables!(val x > y).unwrap_or_else(|x| x);

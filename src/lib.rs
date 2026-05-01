@@ -69,7 +69,7 @@ let cmp = Comparison::new(
 );
 assert_eq!(cmp.to_string(), "`x (value: 1) > y (value: 2)` is false");
 
-let cmp = Comparison::new_checked(
+let cmp = Comparison::new(
     ComparisonValue::new(1, Some("x")),
     ComparisonOperator::Inequal,
     ComparisonValue::new(1, Some("x")),
@@ -91,10 +91,10 @@ let x = 1;
 let y = 2;
 
 let msg = compare_variables!(x > 2).unwrap_or_else(|x| x);
-assert_eq!(err.to_string(), "`x (value: 1) > 2` is false");
+assert_eq!(msg.to_string(), "`x (value: 1) > 2` is false");
 
 let msg = compare_variables!(x > y).unwrap_or_else(|x| x);
-assert_eq!(err.to_string(), "`x (value: 1) > y (value: 2)` is false");
+assert_eq!(msg.to_string(), "`x (value: 1) > y (value: 2)` is false");
 ```
 For more examples, consult the macro documentation.
  */
@@ -179,9 +179,10 @@ impl<T: PartialOrd> Comparison<T> {
             ComparisonOperator::Equal,
             None,
         )?;
+        return Ok(());
     }
     assert!(smaller_than_zero(-3).is_ok());
-    assert_eq!(smaller_than_zero(3).unwrap_err().to_string(), "`0 > input (value: -3)` is false");
+    assert_eq!(smaller_than_zero(3).unwrap_err().to_string(), "`0 > input (value: 3)` is false");
     ```
 
     To unwrap the underlying [`Comparison`] regardless of whether the comparison
@@ -192,22 +193,22 @@ impl<T: PartialOrd> Comparison<T> {
     use compare_variables::{Comparison, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
 
     let ok = Comparison::new_checked(
-        ComparisonValue::new(0, None),
+        ComparisonValue::new(2, None),
         ComparisonOperator::Greater,
-        ComparisonValue::new(2, None)),
+        ComparisonValue::new(0, None),
         ComparisonOperator::Equal,
         None,
     );
-    assert_eq!(ok.unwrap_or_else(|x| x).to_string(), "`0 > input (value: -3)` is false");
+    assert_eq!(ok.unwrap_or_else(|x| x).to_string(), "`2 > 0` is true");
 
     let err = Comparison::new_checked(
-        ComparisonValue::new(0, None),
+        ComparisonValue::new(2, None),
         ComparisonOperator::Lesser,
-        ComparisonValue::new(2, None)),
+        ComparisonValue::new(0, None),
         ComparisonOperator::Equal,
         None,
     );
-    assert_eq!(err.unwrap_or_else(|x| x).to_string(), "`0 > input (value: -3)` is false");
+    assert_eq!(err.unwrap_or_else(|x| x).to_string(), "`2 < 0` is false");
     ```
      */
     pub fn new_checked(
