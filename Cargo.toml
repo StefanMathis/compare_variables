@@ -8,7 +8,7 @@ license  = "MIT OR Apache-2.0"
 repository = "https://github.com/StefanMathis/compare_variables.git"
 
 [dependencies]
-compare_variables_macro = { version = "0.3.0", path = "compare_variables_macro", optional = true}
+compare_variables_macro = { version = "0.3.1", path = "compare_variables_macro", optional = true}
 
 [features]
 default = ["proc_macro"]
