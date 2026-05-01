@@ -168,7 +168,7 @@ pub fn compare_variables(input: TokenStream) -> TokenStream {
 
     // Build the input for the compare_variables function
     let stream = quote! {
-        compare_variables::Operator::new(
+        compare_variables::Comparison::new_checked(
             #first_arg,
             #relation_first_to_second,
             #second_arg,

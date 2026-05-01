@@ -19,14 +19,14 @@ impl NamedFields {
     fn value_bigger_than_field1(
         &self,
         value: f64,
-    ) -> Result<(), compare_variables::ComparisonError<f64>> {
+    ) -> Result<(), compare_variables::Comparison<f64>> {
         return compare_variables!(self.field1 < value);
     }
 
     fn value_bigger_than_field2(
         &self,
         value: f64,
-    ) -> Result<(), compare_variables::ComparisonError<f64>> {
+    ) -> Result<(), compare_variables::Comparison<f64>> {
         return compare_variables!(self.field2 as field2 < value);
     }
 }

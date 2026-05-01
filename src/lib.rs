@@ -1,5 +1,5 @@
 /*!
-[`ComparisonError`]: crate::ComparisonError
+[`Comparison`]: crate::Comparison
 [`PartialOrd`]: std::cmp::PartialOrd
 [`compare_variables`]: crate::compare_variables
 
@@ -16,16 +16,16 @@ pub use compare_variables_macro::compare_variables;
 /**
 Compare the [partial ordering](https://en.wikipedia.org/wiki/Partially_ordered_set) of two or three values and format the result into a message.
 
-The constructor [`ComparisonError::new`] compares two to three input values with each other using the given [`ComparisonOperator`]s and returns an instance
-of this struct as an `Result::Err(ComparisonError)` if the comparison returned "false" (otherwise, [`ComparisonError::new`] returns `Result::Ok(())`).
+The constructor [`Comparison::new`] compares two to three input values with each other using the given [`ComparisonOperator`]s and returns an instance
+of this struct as an `Result::Err(Comparison)` if the comparison returned "false" (otherwise, [`Comparison::new`] returns `Result::Ok(())`).
 This is done in order to allow seamless operation with the `?` operator.
 
 # Examples
 ```
-use compare_variables::{ComparisonError, ComparisonValue, ComparisonOperator};
+use compare_variables::{Comparison, ComparisonValue, ComparisonOperator};
 
-fn my_checked_sub(first: usize, second: usize) -> Result<usize, ComparisonError<usize>> {
-    ComparisonError::new(
+fn my_checked_sub(first: usize, second: usize) -> Result<usize, Comparison<usize>> {
+    Comparison::new_checked(
         ComparisonValue::new(first, None),
         ComparisonOperator::Greater,
         ComparisonValue::new(second, None),
@@ -44,9 +44,9 @@ assert_eq!(err.to_string(), "`1 > 2` is false");
 
 It is possible to specify variable names which are then included in the error message string:
 ```
-use compare_variables::{ComparisonError, ComparisonValue, ComparisonOperator};
+use compare_variables::{Comparison, ComparisonValue, ComparisonOperator};
 
-let err = ComparisonError::new(
+let err = Comparison::new(
     ComparisonValue::new(1, Some("x")),
     ComparisonOperator::Greater,
     ComparisonValue::new(2, None),
@@ -55,7 +55,7 @@ let err = ComparisonError::new(
 ).unwrap_err();
 assert_eq!(err.to_string(), "`x (value: 1) > 2` is false");
 
-let err = ComparisonError::new(
+let err = Comparison::new(
     ComparisonValue::new(1, Some("x")),
     ComparisonOperator::Greater,
     ComparisonValue::new(2, Some("y")),
@@ -64,7 +64,7 @@ let err = ComparisonError::new(
 ).unwrap_err();
 assert_eq!(err.to_string(), "`x (value: 1) > y (value: 2)` is false");
 
-let err = ComparisonError::new(
+let err = Comparison::new(
     ComparisonValue::new(1, Some("x")),
     ComparisonOperator::Inequal,
     ComparisonValue::new(1, Some("x")),
@@ -99,9 +99,9 @@ The error messages are build by concatenating the format strings of the given [`
 These components can be accessed individually in order to build custom error messages:
 
 ```
-use compare_variables::{ComparisonError, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
+use compare_variables::{Comparison, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
 
-let err = ComparisonError::new(
+let err = Comparison::new(
     ComparisonValue::new(1, None),
     ComparisonOperator::Greater,
     ComparisonValue::new(2, None),
@@ -113,7 +113,7 @@ assert_eq!(err.to_string(), "`1 > 2` is false");
 ```
  */
 #[derive(Clone)]
-pub struct ComparisonError<T: PartialOrd> {
+pub struct Comparison<T: PartialOrd> {
     first_val: ComparisonValue<T>,
     comp_first_to_second: ComparisonOperator,
     second_val: ComparisonValue<T>,
@@ -121,9 +121,56 @@ pub struct ComparisonError<T: PartialOrd> {
     third_val: Option<ComparisonValue<T>>,
 }
 
-impl<T: PartialOrd> ComparisonError<T> {
+impl<T: PartialOrd> Comparison<T> {
     /**
-    Returns a new instance of [`ComparisonError`] if the comparison evaluates to
+    Returns a new [`Comparison`] without actually checking if the
+    comparison evaluates to true or false.
+
+    This constructor is useful if one already knows that the comparison
+    evaluates to false or if an error message is needed regardless whether
+
+    ```
+    use compare_variables::{Comparison, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
+
+    //
+    let err = Comparison::new_unchecked(
+        ComparisonValue::new(1, Some("x")),
+        ComparisonOperator::Greater,
+        ComparisonValue::new(2, None),
+        ComparisonOperator::Equal,
+        None,
+    );
+    assert_eq!(err.to_string(), "`x (value: 1) > 2` is false");
+
+    // This comparison is true, but with new_unchecked, we can create an error message regardless
+    let err = Comparison::new_unchecked(
+        ComparisonValue::new(1, None),
+        ComparisonOperator::Lesser,
+        ComparisonValue::new(2, None),
+        ComparisonOperator::Equal,
+        None,
+    );
+    assert_eq!(err.to_string(), "`1 < 2` is false");
+    ```
+    */
+    pub fn new(
+        first_val: ComparisonValue<T>,
+        comp_first_to_second: ComparisonOperator,
+        second_val: ComparisonValue<T>,
+        comp_second_to_third: ComparisonOperator,
+        third_val: Option<ComparisonValue<T>>,
+    ) -> Self {
+        return Self {
+            first_val,
+            comp_first_to_second,
+            second_val,
+            comp_second_to_third,
+            third_val,
+        };
+    }
+
+    /**
+    Returns a new instance of [`Comparison`] if the comparison evaluates to
     false.
 
     The `first_val` is compared to the `second_val` using the
@@ -131,14 +178,14 @@ impl<T: PartialOrd> ComparisonError<T> {
     to the second argument using the `comp_second_to_third` operator. If no
     `third_val` is given, `comp_second_to_third` is not used internally (and can
     therefore be set to any variant of [`ComparisonOperator`]). If one of these
-    comparisons evaluate to false, an instance of [`ComparisonError`] is
-    returned as an `Result::Err(ComparisonError)`. Otherwise, this method
+    comparisons evaluate to false, an instance of [`Comparison`] is
+    returned as an `Result::Err(Comparison)`. Otherwise, this method
     returns `Result::Ok(())`). This is done to allow seamless usage with
     the `?` operator.
 
-    For examples, see the docstring of [`ComparisonError`].
+    For examples, see the docstring of [`Comparison`].
      */
-    pub fn new(
+    pub fn new_checked(
         first_val: ComparisonValue<T>,
         comp_first_to_second: ComparisonOperator,
         second_val: ComparisonValue<T>,
@@ -172,53 +219,6 @@ impl<T: PartialOrd> ComparisonError<T> {
     }
 
     /**
-    Returns a new [`ComparisonError`] without actually checking if the
-    comparison evaluates to true or false.
-
-    This constructor is useful if one already knows that the comparison
-    evaluates to false or if an error message is needed regardless whether
-
-    ```
-    use compare_variables::{ComparisonError, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
-
-    //
-    let err = ComparisonError::new_unchecked(
-        ComparisonValue::new(1, Some("x")),
-        ComparisonOperator::Greater,
-        ComparisonValue::new(2, None),
-        ComparisonOperator::Equal,
-        None,
-    );
-    assert_eq!(err.to_string(), "`x (value: 1) > 2` is false");
-
-    // This comparison is true, but with new_unchecked, we can create an error message regardless
-    let err = ComparisonError::new_unchecked(
-        ComparisonValue::new(1, None),
-        ComparisonOperator::Lesser,
-        ComparisonValue::new(2, None),
-        ComparisonOperator::Equal,
-        None,
-    );
-    assert_eq!(err.to_string(), "`1 < 2` is false");
-    ```
-    */
-    pub fn new_unchecked(
-        first_val: ComparisonValue<T>,
-        comp_first_to_second: ComparisonOperator,
-        second_val: ComparisonValue<T>,
-        comp_second_to_third: ComparisonOperator,
-        third_val: Option<ComparisonValue<T>>,
-    ) -> Self {
-        return Self {
-            first_val,
-            comp_first_to_second,
-            second_val,
-            comp_second_to_third,
-            third_val,
-        };
-    }
-
-    /**
     Returns a reference to the first value.
      */
     pub fn first_val(&self) -> &ComparisonValue<T> {
@@ -240,15 +240,15 @@ impl<T: PartialOrd> ComparisonError<T> {
     }
 }
 
-impl<T: PartialOrd + std::fmt::Debug> std::error::Error for ComparisonError<T> {}
+impl<T: PartialOrd + std::fmt::Debug> std::error::Error for Comparison<T> {}
 
-impl<T: PartialOrd + std::fmt::Debug> std::fmt::Debug for ComparisonError<T> {
+impl<T: PartialOrd + std::fmt::Debug> std::fmt::Debug for Comparison<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         return std::fmt::Display::fmt(self, f);
     }
 }
 
-impl<T: PartialOrd + std::fmt::Debug> std::fmt::Display for ComparisonError<T> {
+impl<T: PartialOrd + std::fmt::Debug> std::fmt::Display for Comparison<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -266,7 +266,7 @@ impl<T: PartialOrd + std::fmt::Debug> std::fmt::Display for ComparisonError<T> {
 /**
 Wrapper around the value with an additional optional field for the variable name (if comparing variables instead of literal values).
 
-If a variable name is given, it is used in constructing the error message of [`ComparisonError`] in addition to the value itself.
+If a variable name is given, it is used in constructing the error message of [`Comparison`] in addition to the value itself.
  */
 #[derive(Debug, Clone)]
 pub struct ComparisonValue<T: PartialOrd> {
@@ -373,7 +373,7 @@ impl std::fmt::Display for ComparisonOperator {
 }
 
 /**
-This trait is used to abstract a concrete `ComparisonError<T>` as a trait object where `T` is erased.
+This trait is used to abstract a concrete `Comparison<T>` as a trait object where `T` is erased.
 
 As an example for using this trait, let's assume a function performs two comparisons on different types
 but only wants to return a single error type:
@@ -390,21 +390,21 @@ fn example() -> Result<(), Box<dyn ComparisonErrorTrait>> {
 pub trait ComparisonErrorTrait: std::error::Error + Sync + Send + std::any::Any {
     /**
     Writes the representation of the first comparison value into the given formatter.
-    This function is especially useful if a [`ComparisonError`] is used as a trait
+    This function is especially useful if a [`Comparison`] is used as a trait
     object [`ComparisonErrorTrait`] in order to erase the underlying type.
      */
     fn fmt_first_val(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 
     /**
     Writes the representation of the second comparison value into the given formatter.
-    This function is especially useful if a [`ComparisonError`] is used as a trait
+    This function is especially useful if a [`Comparison`] is used as a trait
     object [`ComparisonErrorTrait`] in order to erase the underlying type.
      */
     fn fmt_second_val(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 
     /**
     Writes the representation of the third comparison value into the given formatter.
-    This function is especially useful if a [`ComparisonError`] is used as a trait
+    This function is especially useful if a [`Comparison`] is used as a trait
     object [`ComparisonErrorTrait`] in order to erase the underlying type.
 
     If no third value exists, this function returns an error.
@@ -423,7 +423,7 @@ pub trait ComparisonErrorTrait: std::error::Error + Sync + Send + std::any::Any 
 }
 
 impl<T: PartialOrd + std::fmt::Debug + Sync + Send + 'static> ComparisonErrorTrait
-    for ComparisonError<T>
+    for Comparison<T>
 {
     fn fmt_first_val(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         return std::fmt::Display::fmt(self.first_val(), f);

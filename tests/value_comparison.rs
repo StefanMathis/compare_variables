@@ -89,7 +89,7 @@ fn test_compare_variables_raw_value() {
 
 #[test]
 fn check_arg_message() {
-    let message = ComparisonError::new(
+    let message = Comparison::new(
         ComparisonValue::new(1.0, None),
         ComparisonOperator::Equal,
         ComparisonValue::new(2.0, Some("argument")),
@@ -102,7 +102,7 @@ fn check_arg_message() {
         "`1.0 == argument (value: 2.0)` is false"
     );
 
-    let message = ComparisonError::new(
+    let message = Comparison::new(
         ComparisonValue::new(2.0, None),
         ComparisonOperator::Equal,
         ComparisonValue::new(2.0, Some("argument")),
@@ -115,7 +115,7 @@ fn check_arg_message() {
         "`2.0 == argument (value: 2.0) > argument (value: 2.0)` is false"
     );
 
-    let message = ComparisonError::new(
+    let message = Comparison::new(
         ComparisonValue::new(2.0, None),
         ComparisonOperator::Equal,
         ComparisonValue::new(2.0, Some("argument")),
@@ -128,7 +128,7 @@ fn check_arg_message() {
         "`2.0 == argument (value: 2.0) > 2.0` is false"
     );
 
-    let message = ComparisonError::new(
+    let message = Comparison::new(
         ComparisonValue::new(2.0, None),
         ComparisonOperator::Lesser,
         ComparisonValue::new(2.0, None),
@@ -138,7 +138,7 @@ fn check_arg_message() {
     .unwrap_err();
     assert_eq!(format!("{message}"), "`2.0 < 2.0 > 2.0` is false");
 
-    let message = ComparisonError::new(
+    let message = Comparison::new(
         ComparisonValue::new(0.0, None),
         ComparisonOperator::Lesser,
         ComparisonValue::new(2.0, None),
@@ -148,7 +148,7 @@ fn check_arg_message() {
     .unwrap_err();
     assert_eq!(format!("{message}"), "`0.0 < 2.0 <= 1.0` is false");
 
-    let _ = ComparisonError::new(
+    let _ = Comparison::new(
         ComparisonValue::new(2.0, None),
         ComparisonOperator::LesserOrEqual,
         ComparisonValue::new(2.0, None),
