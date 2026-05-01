@@ -3,8 +3,7 @@
 [`PartialOrd`]: std::cmp::PartialOrd
 [`compare_variables`]: crate::compare_variables
 
-A library for comparing the ordering of variables and producing useful error
-messages.
+A library for comparing the ordering of variables and producing useful messages.
 
  */
 #![doc = include_str!("../docs/main.md")]
@@ -177,11 +176,12 @@ impl<T: PartialOrd> ComparisonError<T> {
     comparison evaluates to true or false.
 
     This constructor is useful if one already knows that the comparison
-    evaluates to false:
+    evaluates to false or if an error message is needed regardless whether
 
     ```
     use compare_variables::{ComparisonError, ComparisonValue, ComparisonOperator, ComparisonErrorTrait};
 
+    //
     let err = ComparisonError::new_unchecked(
         ComparisonValue::new(1, Some("x")),
         ComparisonOperator::Greater,
@@ -189,8 +189,17 @@ impl<T: PartialOrd> ComparisonError<T> {
         ComparisonOperator::Equal,
         None,
     );
-
     assert_eq!(err.to_string(), "`x (value: 1) > 2` is false");
+
+    // This comparison is true, but with new_unchecked, we can create an error message regardless
+    let err = ComparisonError::new_unchecked(
+        ComparisonValue::new(1, None),
+        ComparisonOperator::Lesser,
+        ComparisonValue::new(2, None),
+        ComparisonOperator::Equal,
+        None,
+    );
+    assert_eq!(err.to_string(), "`1 < 2` is false");
     ```
     */
     pub fn new_unchecked(

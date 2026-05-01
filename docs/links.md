@@ -11,8 +11,7 @@ modify the components. -->
 
 [![Documentation](https://docs.rs/compare_variables/badge.svg)](https://docs.rs/compare_variables)
 
-A library for comparing the ordering of variables and producing useful error
-messages.
+A library for comparing the ordering of variables and producing useful messages.
 
 The full API documentation is available at https://docs.rs/compare_variables/{{VERSION}}/compare_variables.
 

@@ -16,7 +16,7 @@ A macro to compare types which implement `PartialOrd`.
 This macro performs comparison between two or three values of any type `T` which
 implements  `PartialOrd`. If the comparison evaluates to `true`, the macro
 returns `Result::Ok(())`, otherwise it returns a
-`Result::Err(compare_variables::ComparisonError)` which can be formatted into a
+`Result::Err(compare_variables::Operator)` which can be formatted into a
 string showcasing the failed comparison.
 
 The macro syntax is
@@ -46,9 +46,9 @@ assert!(compare_variables!(x != y).is_ok());
 
 It is possible to combine the macro with the question mark operator:
 ```rust
-use compare_variables::{compare_variables, ComparisonError};
+use compare_variables::{compare_variables, Operator};
 
-fn checked_sub(left: u16, right: u16) -> Result<u16, ComparisonError<u16>> {
+fn checked_sub(left: u16, right: u16) -> Result<u16, Operator<u16>> {
     compare_variables!(left >= right)?;
     return Ok(left - right);
 }
@@ -78,7 +78,7 @@ assert!(compare_variables!(a.0 > 1).is_err());
 
 # Error message
 
-The error message is created via the struct [`ComparisonError`](https://docs.rs/compare_variables/0.1.0/compare_variables/struct.ComparisonError.html).
+The error message is created via the struct [`Operator`](https://docs.rs/compare_variables/0.1.0/compare_variables/struct.Operator.html).
 Please refer to its documentation for more details. The keywords `val` and `as` allow to customize the treatment of variable names in the error message:
 
 ```
@@ -168,7 +168,7 @@ pub fn compare_variables(input: TokenStream) -> TokenStream {
 
     // Build the input for the compare_variables function
     let stream = quote! {
-        compare_variables::ComparisonError::new(
+        compare_variables::Operator::new(
             #first_arg,
             #relation_first_to_second,
             #second_arg,
@@ -181,7 +181,7 @@ pub fn compare_variables(input: TokenStream) -> TokenStream {
 }
 
 #[repr(u8)]
-enum ComparisonError {
+enum Operator {
     Lesser,
     LesserOrEqual,
     Equal,
@@ -190,35 +190,35 @@ enum ComparisonError {
     Greater,
 }
 
-impl ComparisonError {
+impl Operator {
     fn as_token_stream(&self) -> proc_macro2::TokenStream {
         match self {
-            ComparisonError::Lesser => {
+            Operator::Lesser => {
                 quote! {
                     compare_variables::ComparisonOperator::Lesser
                 }
             }
-            ComparisonError::LesserOrEqual => {
+            Operator::LesserOrEqual => {
                 quote! {
                     compare_variables::ComparisonOperator::LesserOrEqual
                 }
             }
-            ComparisonError::Equal => {
+            Operator::Equal => {
                 quote! {
                     compare_variables::ComparisonOperator::Equal
                 }
             }
-            ComparisonError::Inequal => {
+            Operator::Inequal => {
                 quote! {
                     compare_variables::ComparisonOperator::Inequal
                 }
             }
-            ComparisonError::GreaterOrEqual => {
+            Operator::GreaterOrEqual => {
                 quote! {
                     compare_variables::ComparisonOperator::GreaterOrEqual
                 }
             }
-            ComparisonError::Greater => {
+            Operator::Greater => {
                 quote! {
                     compare_variables::ComparisonOperator::Greater
                 }
@@ -227,28 +227,28 @@ impl ComparisonError {
     }
 }
 
-impl Parse for ComparisonError {
+impl Parse for Operator {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         // If Token![<] is tested before Token![<=], then "<" is parsed, leaving only
         // "=". This will then lead to a compile error.
         if input.peek(Token![<=]) {
             input.parse::<Token![<=]>()?;
-            Ok(ComparisonError::LesserOrEqual)
+            Ok(Operator::LesserOrEqual)
         } else if input.peek(Token![>=]) {
             input.parse::<Token![>=]>()?;
-            Ok(ComparisonError::GreaterOrEqual)
+            Ok(Operator::GreaterOrEqual)
         } else if input.peek(Token![==]) {
             input.parse::<Token![==]>()?;
-            Ok(ComparisonError::Equal)
+            Ok(Operator::Equal)
         } else if input.peek(Token![!=]) {
             input.parse::<Token![!=]>()?;
-            Ok(ComparisonError::Inequal)
+            Ok(Operator::Inequal)
         } else if input.peek(Token![<]) {
             input.parse::<Token![<]>()?;
-            Ok(ComparisonError::Lesser)
+            Ok(Operator::Lesser)
         } else if input.peek(Token![>]) {
             input.parse::<Token![>]>()?;
-            Ok(ComparisonError::Greater)
+            Ok(Operator::Greater)
         } else {
             Err(syn::Error::new(
                 input.span(),
@@ -409,9 +409,9 @@ impl Parse for VariableOrLiteral {
 // Parser for the compare_variables macro
 struct ComparisonErrorInfo {
     first_arg: VariableOrLiteral,
-    relation_first_to_second: ComparisonError,
+    relation_first_to_second: Operator,
     second_arg: VariableOrLiteral,
-    relation_second_to_third: ComparisonError,
+    relation_second_to_third: Operator,
     third_arg: Option<VariableOrLiteral>,
 }
 
@@ -419,16 +419,15 @@ impl Parse for ComparisonErrorInfo {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         // Read the arguments
         let first_arg = VariableOrLiteral::parse(&input)?;
-        let relation_first_to_second = ComparisonError::parse(&input)?;
+        let relation_first_to_second = Operator::parse(&input)?;
         let second_arg = VariableOrLiteral::parse(&input)?;
 
         // If the input continues, parse the third argument
-        let (relation_second_to_third, third_arg) =
-            if let Ok(operator) = ComparisonError::parse(&input) {
-                (operator, Some(VariableOrLiteral::parse(&input)?))
-            } else {
-                (ComparisonError::Equal, None)
-            };
+        let (relation_second_to_third, third_arg) = if let Ok(operator) = Operator::parse(&input) {
+            (operator, Some(VariableOrLiteral::parse(&input)?))
+        } else {
+            (Operator::Equal, None)
+        };
 
         return Ok(ComparisonErrorInfo {
             first_arg,
